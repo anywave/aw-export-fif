@@ -1,0 +1,2 @@
+name=MNE/FIFF Export
+description=Export data to FIFF format readable by MNE tools
