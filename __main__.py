@@ -10,9 +10,25 @@ import pyqtgraph as pg
 app = pg.mkQApp()
 LOG.debug('built QApplication %r', app)
 
-LOG.debug('requesting filename...')
+# try to get last used directory
+settings = pg.QtCore.QSettings('INS', 'aw-export-to-fif')
+try:
+    dirname = settings.value('dir')
+    if not isinstance(dirname, (unicode,)):
+        dirname = unicode(dirname.toString())
+except Exception as exc:
+    LOG.warning('could not retrieve settings!')
+    LOG.exception(exc)
+    dirname = u''
+
+# otherwise $HOME
+if len(dirname) == 0:
+    dirname = os.path.expanduser('~/')
+
+LOG.debug('requesting save filename in directory %r', dirname)
 filename = pg.QtGui.QFileDialog.getSaveFileName(
     caption='Choose fif filename to save to',
+    dir=dirname,
     filter='Raw FIFF file (*-raw.fif)')
 LOG.debug('received %r', filename)
 
@@ -24,14 +40,19 @@ except:
 
 filename = unicode(filename)
 
-if not filename.endswith('-raw.fif'):
-    LOG.warning('filename %r does not conform to convention, appending -raw.fif to name')
-    filename += '-raw.fif'
-
 if len(filename) == 0:
     LOG.info('filename had zero length, quitting...')
 
 else:
+
+    # persist dirname
+    settings.setValue('dir', os.path.dirname(os.path.abspath(filename)))
+
+    if not filename.endswith('-raw.fif'):
+        LOG.warning('filename %r does not conform to convention, '
+                    'appending -raw.fif to name')
+        filename += '-raw.fif'
+
     LOG.debug('beginning imports')
     import time
     tic = time.time()
@@ -87,6 +108,6 @@ else:
     raw = RawArray(data, info)
     LOG.info('%r', raw)
 
-    LOG.info('saving to %r', filename)
     raw.save(filename)
+    LOG.info('saved %r', filename)
     LOG.info('done in %.3f s', time.time() - tic)
